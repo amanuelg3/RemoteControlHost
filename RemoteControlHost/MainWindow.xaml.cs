@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows;
+using System.Xml.Linq;
 
 namespace RemoteControlHost
 {
@@ -31,6 +32,18 @@ namespace RemoteControlHost
             _httpThread.Start();
         }
 
+        private XDocument GetXmlSetup()
+        {
+            var document = new XDocument(
+                new XDeclaration("1.0","utf-8","yes"),
+                new XElement("commands",
+                    new XElement("previous","Previous"),
+                    new XElement("playpause","Play/pause"),
+                    new XElement("next","Next"))
+                );
+            return document;
+        }
+
         private void HttpServeThead()
         {
             _httpServer = new HttpListener();
@@ -44,7 +57,7 @@ namespace RemoteControlHost
                 HttpListenerResponse response = context.Response;
                 
                 // Construct a response. 
-                string responseString = "<HTML><BODY>Hello world!</BODY></HTML>";
+                string responseString = GetXmlSetup().ToString(SaveOptions.DisableFormatting);
                 byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
                 // Get a response stream and write the response to it.
                 response.ContentLength64 = buffer.Length;
