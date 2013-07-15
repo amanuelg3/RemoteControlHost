@@ -15,6 +15,8 @@ namespace RemoteControlHost
     {
         private UdpClient _udpClient;
         private Thread _udpThread;
+        private HttpListener _httpServer;
+        private Thread _httpThread;
 
         public MainWindow()
         {
@@ -23,6 +25,34 @@ namespace RemoteControlHost
             _udpThread = new Thread(ReceiveUdpPackets);
             _udpThread.IsBackground = true;
             _udpThread.Start();
+
+            _httpThread = new Thread(HttpServeThead);
+            _httpThread.IsBackground = true;
+            _httpThread.Start();
+        }
+
+        private void HttpServeThead()
+        {
+            _httpServer = new HttpListener();
+            _httpServer.Prefixes.Add("http://192.168.0.25:50004/");
+            _httpServer.Start();
+            while (true)
+            {
+                var context =_httpServer.GetContext();
+                HttpListenerRequest request = context.Request;
+                // Obtain a response object.
+                HttpListenerResponse response = context.Response;
+                
+                // Construct a response. 
+                string responseString = "<HTML><BODY>Hello world!</BODY></HTML>";
+                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                // Get a response stream and write the response to it.
+                response.ContentLength64 = buffer.Length;
+                System.IO.Stream output = response.OutputStream;
+                output.Write(buffer, 0, buffer.Length);
+                // You must close the output stream.
+                output.Close();
+            }
         }
 
         private void ReceiveUdpPackets()
