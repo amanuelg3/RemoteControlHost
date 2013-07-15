@@ -1,2 +1,4 @@
-RemoteControlHost\bin/
-RemoteControlHost\obj/
+bin
+obj
+*~
+*.user

@@ -36,10 +36,10 @@ namespace RemoteControlHost
         {
             var document = new XDocument(
                 new XDeclaration("1.0","utf-8","yes"),
-                new XElement("commands",
-                    new XElement("previous","Previous"),
-                    new XElement("playpause","Play/pause"),
-                    new XElement("next","Next"))
+                new XElement("commands", new XAttribute("name","media"),
+                    new XElement("command",new XAttribute("cmd","previous"), "Previous"),
+                    new XElement("command",new XAttribute("cmd","playpause"),"Play/pause"),
+                    new XElement("command",new XAttribute("cmd","next"),"Next"))
                 );
             return document;
         }
@@ -57,14 +57,10 @@ namespace RemoteControlHost
                 HttpListenerResponse response = context.Response;
                 
                 // Construct a response. 
-                string responseString = GetXmlSetup().ToString(SaveOptions.DisableFormatting);
-                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
-                // Get a response stream and write the response to it.
-                response.ContentLength64 = buffer.Length;
-                System.IO.Stream output = response.OutputStream;
-                output.Write(buffer, 0, buffer.Length);
+                var doc = GetXmlSetup();
+                doc.Save(response.OutputStream);                
                 // You must close the output stream.
-                output.Close();
+                response.OutputStream.Close();
             }
         }
 
