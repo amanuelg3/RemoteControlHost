@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Windows;
 using System.Xml.Linq;
+using RemoteControlHost.Library;
 
 namespace RemoteControlHost
 {
@@ -18,10 +19,20 @@ namespace RemoteControlHost
         private Thread _udpThread;
         private HttpListener _httpServer;
         private Thread _httpThread;
+        private RemoteControlRepository _remoteControlRepository;
 
         public MainWindow()
         {
             InitializeComponent();
+
+
+        }
+
+        protected override void OnInitialized(EventArgs e)
+        {
+            base.OnInitialized(e);
+
+            _remoteControlRepository = new RemoteControlRepository();
 
             _udpThread = new Thread(ReceiveUdpPackets);
             _udpThread.IsBackground = true;
@@ -34,16 +45,22 @@ namespace RemoteControlHost
 
         private XDocument GetXmlSetup()
         {
-            var document = new XDocument(
-                new XDeclaration("1.0","utf-8","yes"),
-                new XElement("commands", new XAttribute("name","media"),
-                    new XElement("command",new XAttribute("cmd","previous"), "Previous"),
-                    new XElement("command",new XAttribute("cmd","playpause"),"Play/pause"),
-                    new XElement("command",new XAttribute("cmd","next"),"Next"))
-                );
+            var document = new XDocument(new XDeclaration("1.0", "utf-8", "yes"));
+            var moduleRoot = new XElement("modules");
+            document.Add(moduleRoot);
+            foreach (var module in _remoteControlRepository.Modules)
+            {
+                var moduleXml = new XElement("module", new XAttribute("name", module.Key));
+                foreach (var command in module.Value.Commands)
+                    moduleXml.Add(new XElement("command", new XAttribute("cmd", module.Key + ":::" + command.CommandName), command.CommandText));
+                moduleRoot.Add(moduleXml);
+            }
             return document;
         }
 
+        /// <summary>
+        /// HttpServeThread answers requests for setup
+        /// </summary>
         private void HttpServeThead()
         {
             _httpServer = new HttpListener();
@@ -51,19 +68,21 @@ namespace RemoteControlHost
             _httpServer.Start();
             while (true)
             {
-                var context =_httpServer.GetContext();
+                var context = _httpServer.GetContext();
+
+                // TODO: Do something module related depending on request
                 HttpListenerRequest request = context.Request;
-                // Obtain a response object.
-                HttpListenerResponse response = context.Response;
-                
-                // Construct a response. 
+
                 var doc = GetXmlSetup();
-                doc.Save(response.OutputStream);                
-                // You must close the output stream.
+                var response = context.Response;
+                doc.Save(response.OutputStream);
                 response.OutputStream.Close();
             }
         }
 
+        /// <summary>
+        /// Receive commands over Udp
+        /// </summary>
         private void ReceiveUdpPackets()
         {
             _udpClient = new UdpClient(50000);
@@ -76,131 +95,23 @@ namespace RemoteControlHost
             }
         }
 
+        /// <summary>
+        /// Handle messages received over udp (invoked such that it is run on GUI thread).
+        /// </summary>
+        /// <param name="messageText"></param>
         private void HandleMessage(string messageText)
         {
-            switch (messageText)
+            var parts = messageText.Split(new string[] { ":::" }, 2, StringSplitOptions.None);
+            IRemoteControlModule module;
+            if (_remoteControlRepository.Modules.TryGetValue(parts[0], out module))
             {
-                case "next":
-                    NextCommand();
-                    break;
-                case "previous":
-                    PreviousCommand();
-                    break;
-                case "playPause":
-                    PlayPauseCommand();
-                    break;
+                var command = module.Commands.Find(c => c.CommandName == parts[1]);
+                if (command != null)
+                {
+                    command.ExecuteCommand();
+                }
             }
         }
 
-        const int INPUT_MOUSE = 0;
-        const int INPUT_KEYBOARD = 1;
-        const int INPUT_HARDWARE = 2;
-        const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
-        const uint KEYEVENTF_KEYUP = 0x0002;
-        const uint KEYEVENTF_UNICODE = 0x0004;
-        const uint KEYEVENTF_SCANCODE = 0x0008;
-
-        struct INPUT
-        {
-            public int type;
-            public InputUnion u;
-        }
-
-        [StructLayout(LayoutKind.Explicit)]
-        struct InputUnion
-        {
-            [FieldOffset(0)]
-            public MOUSEINPUT mi;
-            [FieldOffset(0)]
-            public KEYBDINPUT ki;
-            [FieldOffset(0)]
-            public HARDWAREINPUT hi;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct MOUSEINPUT
-        {
-            public int dx;
-            public int dy;
-            public uint mouseData;
-            public uint dwFlags;
-            public uint time;
-            public IntPtr dwExtraInfo;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct KEYBDINPUT
-        {
-            /*Virtual Key code.  Must be from 1-254.  If the dwFlags member specifies KEYEVENTF_UNICODE, wVk must be 0.*/
-            public ushort wVk;
-            /*A hardware scan code for the key. If dwFlags specifies KEYEVENTF_UNICODE, wScan specifies a Unicode character which is to be sent to the foreground application.*/
-            public ushort wScan;
-            /*Specifies various aspects of a keystroke.  See the KEYEVENTF_ constants for more information.*/
-            public uint dwFlags;
-            /*The time stamp for the event, in milliseconds. If this parameter is zero, the system will provide its own time stamp.*/
-            public uint time;
-            /*An additional value associated with the keystroke. Use the GetMessageExtraInfo function to obtain this information.*/
-            public IntPtr dwExtraInfo;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct HARDWAREINPUT
-        {
-            public uint uMsg;
-            public ushort wParamL;
-            public ushort wParamH;
-        }
-
-        [DllImport("user32.dll")]
-        static extern IntPtr GetMessageExtraInfo();
-
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-
-        private INPUT[] GenereateInputForVirtualKeyCode(byte keyCode)
-        {
-            return new INPUT[]
-                {
-                    new INPUT
-                        {
-                            type = INPUT_KEYBOARD,
-                            u = new InputUnion
-                                {
-                                    ki = new KEYBDINPUT
-                                        {
-                                            wVk = keyCode,
-                                            wScan = 0,
-                                            dwFlags = 0,
-                                            dwExtraInfo = GetMessageExtraInfo(),
-                                        }
-                                }
-                        }
-                };
-        }
-
-        /// <summary>
-        /// Keycodes : http://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
-        /// </summary>
-        /// <param name="key"></param>
-        private void SendVirtualKey(byte key)
-        {
-            var pInput = GenereateInputForVirtualKeyCode(key);
-            SendInput(1, pInput, Marshal.SizeOf(typeof(INPUT)));
-        }
-
-        private void PreviousCommand()
-        {
-            SendVirtualKey(0xB1);            
-        }
-
-        private void NextCommand()
-        {
-            SendVirtualKey(0xB0);            
-        }
-
-        private void PlayPauseCommand()
-        {
-            SendVirtualKey(0xB3);
-        }
     }
 }
