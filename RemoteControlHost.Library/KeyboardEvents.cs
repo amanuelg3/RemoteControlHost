@@ -121,5 +121,9 @@ namespace RemoteControlHost.Library
             SendVirtualKey(0xB3);
         }
 
+        public void KeySpace()
+        {
+            SendVirtualKey(0x20);
+        }
     }
 }
