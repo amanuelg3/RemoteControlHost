@@ -50,9 +50,17 @@ namespace RemoteControlHost
             document.Add(moduleRoot);
             foreach (var module in _remoteControlRepository.Modules)
             {
-                var moduleXml = new XElement("module", new XAttribute("name", module.Key));
+                var moduleXml = new XElement("module",
+                    new XAttribute("name", module.Key),
+                    new XAttribute("rows", module.Value.Rows),
+                    new XAttribute("columns", module.Value.Columns));
+
                 foreach (var command in module.Value.Commands)
-                    moduleXml.Add(new XElement("command", new XAttribute("cmd", module.Key + ":::" + command.CommandName), command.CommandText));
+                    moduleXml.Add(new XElement("command",
+                        new XAttribute("cmd", module.Key + ":::" + command.CommandName),
+                        new XAttribute("row", command.Row),
+                        new XAttribute("column", command.Column),
+                        command.CommandText));
                 moduleRoot.Add(moduleXml);
             }
             return document;

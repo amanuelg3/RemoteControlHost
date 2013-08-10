@@ -14,6 +14,16 @@ namespace RemoteControlHost.Library
         string ModuleName { get;  }
 
         /// <summary>
+        /// Number of rows for layout
+        /// </summary>
+        int Rows { get; }
+
+        /// <summary>
+        /// Number of colums for layout
+        /// </summary>
+        int Columns { get; }
+        
+        /// <summary>
         /// List of commands to be shown on client
         /// </summary>
         List<IRemoteControlCommand> Commands { get; } 

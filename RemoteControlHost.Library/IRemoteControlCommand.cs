@@ -21,5 +21,15 @@ namespace RemoteControlHost.Library
         /// Action to be executed when activated via client
         /// </summary>
         Action ExecuteCommand { get; }
+
+        /// <summary>
+        /// Row to display control in
+        /// </summary>
+        int Row { get; }
+
+        /// <summary>
+        /// Column to displa control in
+        /// </summary>
+        int Column { get; }
     }
 }

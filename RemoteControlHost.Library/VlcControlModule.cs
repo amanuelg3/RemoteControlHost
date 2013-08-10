@@ -12,6 +12,8 @@ namespace RemoteControlHost.Library
     public class VlcControlModule : IRemoteControlModule
     {
         public string ModuleName { get; private set; }
+        public int Rows { get; private set; }
+        public int Columns { get; private set; }
         public List<IRemoteControlCommand> Commands { get; private set; }
 
         public VlcControlModule()
@@ -19,9 +21,11 @@ namespace RemoteControlHost.Library
             ModuleName = "VLC";
             Commands = new List<IRemoteControlCommand>()
                 {
-                    new MediaControlCommand("start/stop","Start/stop",StartStop),
-                    new MediaControlCommand("fullscreen","Fullscreen on/off",FullScreen)
+                    new MediaControlCommand("start/stop","Start/stop",StartStop,0,0),
+                    new MediaControlCommand("fullscreen","Fullscreen on/off",FullScreen,0,1),
                 };
+            Rows = 1;
+            Columns = 2;
         }
 
         private void FullScreen()
